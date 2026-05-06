@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TrustCheck — AI Review Analyser Extension</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#07080c;--surface:#11141e;--card:#161923;--border:#1e2333;--border2:#252c40;
+  --blue:#3d6fff;--blue-bright:#5c8aff;--blue-glow:rgba(61,111,255,0.15);
+  --buy:#00e897;--avoid:#ff3d5a;--caution:#ffb020;
+  --text:#e2e8f8;--muted:#4a5478;--mid:#7a85a8;
+  --font-display:'Bebas Neue',sans-serif;--font-serif:'Instrument Serif',serif;
+  --font-mono:'DM Mono',monospace;--font-body:'DM Sans',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--black);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.6;overflow-x:hidden;cursor:default;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4;}
+
+/* CURSOR */
+.cursor{position:fixed;width:8px;height:8px;background:var(--blue-bright);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:screen;}
+.cursor-ring{position:fixed;width:32px;height:32px;border:1px solid rgba(92,138,255,0.4);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .2s,height .2s;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:center;justify-content:space-between;padding:18px 48px;background:linear-gradient(to bottom,rgba(7,8,12,0.97),transparent);backdrop-filter:blur(2px);}
+.nav-logo{font-family:var(--font-display);font-size:26px;letter-spacing:2px;color:#fff;}
+.nav-logo span{color:var(--blue-bright)}
+.nav-links{display:flex;gap:28px;align-items:center;}
+.nav-link{font-size:13px;color:var(--mid);text-decoration:none;letter-spacing:.3px;transition:color .2s;}
+.nav-link:hover{color:var(--text)}
+.nav-btn{background:var(--blue);color:#fff;border:none;border-radius:8px;font-family:var(--font-body);font-weight:600;font-size:13px;padding:9px 20px;cursor:pointer;transition:background .2s,transform .15s;text-decoration:none;display:inline-block;}
+.nav-btn:hover{background:var(--blue-bright);transform:translateY(-1px)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 24px 80px;position:relative;overflow:hidden;text-align:center;}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(30,35,51,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(30,35,51,0.5) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 70% 70% at 50% 50%,black,transparent);pointer-events:none;}
+.hero::after{content:'';position:absolute;width:700px;height:700px;background:radial-gradient(circle,rgba(61,111,255,0.07) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-60%);pointer-events:none;}
+.hero-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--blue-bright);background:var(--blue-glow);border:1px solid rgba(61,111,255,0.25);padding:6px 18px;border-radius:20px;display:inline-block;margin-bottom:28px;animation:fadeUp .8s both;}
+.hero-title{font-family:var(--font-display);font-size:clamp(72px,12vw,138px);line-height:.9;letter-spacing:4px;color:#fff;animation:fadeUp .8s .1s both;position:relative;z-index:1;}
+.hero-title .italic{font-family:var(--font-serif);font-style:italic;color:var(--blue-bright);font-size:.72em;display:block;letter-spacing:2px;}
+.hero-sub{font-size:17px;color:var(--mid);max-width:500px;margin:24px auto 0;font-weight:300;line-height:1.7;animation:fadeUp .8s .2s both;}
+.hero-sub strong{color:var(--text);font-weight:500}
+.hero-cta{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:40px;flex-wrap:wrap;animation:fadeUp .8s .3s both;}
+.btn-primary{background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:var(--font-body);font-weight:600;font-size:15px;padding:14px 32px;cursor:pointer;transition:all .2s;box-shadow:0 0 40px rgba(61,111,255,0.3);text-decoration:none;display:inline-block;}
+.btn-primary:hover{background:var(--blue-bright);transform:translateY(-2px);box-shadow:0 0 60px rgba(61,111,255,0.5)}
+.btn-ghost{background:transparent;color:var(--mid);border:1px solid var(--border2);border-radius:10px;font-family:var(--font-body);font-size:14px;padding:13px 24px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-block;}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+.hero-stats{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;margin-top:64px;padding-top:40px;border-top:1px solid var(--border);animation:fadeUp .8s .4s both;}
+.stat{text-align:center}
+.stat-num{font-family:var(--font-display);font-size:42px;letter-spacing:2px;color:#fff;line-height:1;}
+.stat-num span{color:var(--blue-bright)}
+.stat-label{font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+
+/* MARQUEE */
+.marquee-wrap{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface);padding:14px 0;}
+.marquee-track{display:flex;animation:marquee 22s linear infinite;width:max-content;}
+.marquee-item{font-family:var(--font-mono);font-size:12px;color:var(--muted);letter-spacing:1px;padding:0 32px;border-right:1px solid var(--border);white-space:nowrap;}
+.marquee-item span{color:var(--blue-bright)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* SECTION COMMONS */
+.section-inner{max-width:1000px;margin:0 auto;padding:100px 24px;}
+.section-label{font-family:var(--font-mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--blue-bright);margin-bottom:12px;}
+.section-title{font-family:var(--font-display);font-size:clamp(36px,6vw,64px);letter-spacing:2px;color:#fff;line-height:.95;margin-bottom:16px;}
+.section-sub{font-size:15px;color:var(--mid);max-width:520px;line-height:1.7}
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .7s,transform .7s;}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── INSTALL ── */
+.install-section{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.install-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:48px;}
+.install-step{background:var(--card);padding:28px 22px;transition:background .2s;}
+.install-step:first-child{border-radius:16px 0 0 16px}
+.install-step:last-child{border-radius:0 16px 16px 0}
+.install-step:hover{background:#1a1f2e}
+.install-num{font-family:var(--font-display);font-size:48px;letter-spacing:2px;color:var(--border2);line-height:1;margin-bottom:12px;}
+.install-icon{font-size:24px;margin-bottom:10px;display:block;}
+.install-title{font-family:var(--font-display);font-size:18px;letter-spacing:1px;color:#fff;margin-bottom:7px;}
+.install-desc{font-size:12.5px;color:var(--mid);line-height:1.6;}
+.install-code{font-family:var(--font-mono);font-size:10px;background:var(--black);border:1px solid var(--border2);border-radius:6px;padding:5px 9px;margin-top:10px;color:var(--blue-bright);display:inline-block;word-break:break-all;}
+.github-cta{margin-top:48px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.github-btn{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#0d1117;border:none;border-radius:10px;font-family:var(--font-body);font-weight:600;font-size:15px;padding:14px 28px;cursor:pointer;transition:all .2s;text-decoration:none;box-shadow:0 0 32px rgba(255,255,255,0.06);}
+.github-btn:hover{background:#e6edf3;transform:translateY(-2px)}
+.github-icon{width:22px;height:22px;flex-shrink:0;}
+.github-note{font-size:13px;color:var(--muted);font-family:var(--font-mono);}
+
+/* ── FLOW ── */
+.flow-section{padding:100px 24px;}
+.flow-inner{max-width:860px;margin:0 auto;}
+.flow-node{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:24px 28px;transition:border-color .3s,background .25s;}
+.flow-node:hover{border-color:var(--blue);background:#1a1f2e;}
+.flow-node-num{font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--blue-bright);text-transform:uppercase;margin-bottom:7px;}
+.flow-node-title{font-family:var(--font-display);font-size:20px;letter-spacing:1px;color:#fff;margin-bottom:6px;}
+.flow-node-desc{font-size:13px;color:var(--mid);line-height:1.65;}
+.flow-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+.flow-tag{font-family:var(--font-mono);font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.5px;}
+.tag-b{background:var(--blue-glow);color:var(--blue-bright);border:1px solid rgba(61,111,255,0.2);}
+.tag-y{background:rgba(255,176,32,0.08);color:var(--caution);border:1px solid rgba(255,176,32,0.2);}
+.tag-g{background:rgba(0,232,151,0.08);color:var(--buy);border:1px solid rgba(0,232,151,0.2);}
+.flow-arrow{text-align:center;padding:10px 0;color:var(--muted);font-size:18px;}
+.flow-split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;}
+.split-node{padding:20px;border:1px solid var(--border2);}
+.split-node.g{background:rgba(0,232,151,0.04);border-color:rgba(0,232,151,0.2);border-radius:0 0 0 14px;}
+.split-node.y{background:rgba(255,176,32,0.04);border-color:rgba(255,176,32,0.2);border-radius:0;}
+.split-node.r{background:rgba(255,61,90,0.04);border-color:rgba(255,61,90,0.2);border-radius:0 0 14px 0;}
+.split-title{font-family:var(--font-display);font-size:18px;letter-spacing:1px;margin-bottom:6px;}
+.split-node.g .split-title{color:var(--buy)}
+.split-node.y .split-title{color:var(--caution)}
+.split-node.r .split-title{color:var(--avoid)}
+.split-desc{font-size:12px;color:var(--mid);line-height:1.55;}
+.flow-top-node{border-radius:14px 14px 0 0;border-bottom:none;}
+
+/* ── PARAMETERS ── */
+.params-section{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.params-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:48px;}
+.param-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;transition:border-color .25s,transform .2s;}
+.param-card:hover{border-color:var(--border2);transform:translateY(-3px);}
+.param-icon{font-size:26px;margin-bottom:13px;display:block;}
+.param-title{font-family:var(--font-display);font-size:18px;letter-spacing:1px;color:#fff;margin-bottom:6px;}
+.param-desc{font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:12px;}
+.param-signals{display:flex;flex-wrap:wrap;gap:6px;}
+.signal-tag{font-family:var(--font-mono);font-size:10px;padding:3px 9px;border-radius:12px;background:var(--surface);border:1px solid var(--border2);color:var(--mid);}
+
+/* ── VERDICT ── */
+.verdict-section{padding:100px 24px;}
+.verdict-inner{max-width:900px;margin:0 auto;}
+.verdict-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px;}
+.verdict-card{border-radius:16px;padding:28px;text-align:center;transition:transform .2s;}
+.verdict-card:hover{transform:translateY(-4px)}
+.vc-buy{background:rgba(0,232,151,0.05);border:1px solid rgba(0,232,151,0.2);}
+.vc-caution{background:rgba(255,176,32,0.05);border:1px solid rgba(255,176,32,0.2);}
+.vc-avoid{background:rgba(255,61,90,0.05);border:1px solid rgba(255,61,90,0.2);}
+.verdict-emoji{font-size:40px;margin-bottom:14px;display:block;}
+.verdict-name{font-family:var(--font-display);font-size:32px;letter-spacing:2px;margin-bottom:7px;}
+.vc-buy .verdict-name{color:var(--buy)}
+.vc-caution .verdict-name{color:var(--caution)}
+.vc-avoid .verdict-name{color:var(--avoid)}
+.verdict-range{font-family:var(--font-mono);font-size:10px;letter-spacing:1px;margin-bottom:12px;opacity:.6;}
+.vc-buy .verdict-range{color:var(--buy)}
+.vc-caution .verdict-range{color:var(--caution)}
+.vc-avoid .verdict-range{color:var(--avoid)}
+.verdict-desc{font-size:13px;color:var(--mid);line-height:1.6;}
+.formula-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:32px;margin-top:28px;}
+.formula-title{font-family:var(--font-mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--blue-bright);margin-bottom:20px;}
+.formula-row{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.formula-weight{font-family:var(--font-display);font-size:28px;letter-spacing:1px;color:var(--blue-bright);min-width:52px;}
+.formula-label{flex:1;min-width:160px;}
+.formula-name{font-size:14px;color:#fff;font-weight:500;margin-bottom:2px;}
+.formula-detail{font-size:12px;color:var(--muted);}
+.formula-bar-bg{height:5px;background:var(--border2);border-radius:4px;flex:2;min-width:80px;}
+.formula-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#2a50e0,var(--blue-bright));}
+.formula-note{border-top:1px solid var(--border);margin-top:16px;padding-top:14px;font-size:12px;color:var(--muted);font-family:var(--font-mono);}
+
+/* ── FEATURES ── */
+.features-section{background:var(--surface);border-top:1px solid var(--border);}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:48px;}
+.feature-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;transition:border-color .2s,transform .2s;}
+.feature-card:hover{border-color:var(--border2);transform:translateY(-3px)}
+.feature-icon{font-size:26px;margin-bottom:14px;display:block;}
+.feature-title{font-family:var(--font-display);font-size:19px;letter-spacing:1px;color:#fff;margin-bottom:8px;}
+.feature-desc{font-size:13px;color:var(--mid);line-height:1.65}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.footer-logo{font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--mid);}
+.footer-logo span{color:var(--blue-bright)}
+.footer-links{display:flex;gap:20px;}
+.footer-link{font-size:13px;color:var(--muted);text-decoration:none;transition:color .2s;}
+.footer-link:hover{color:var(--text)}
+.footer-tag{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:1px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:900px){
+  nav{padding:16px 20px}.nav-links{display:none}
+  .install-steps{grid-template-columns:1fr;gap:2px}
+  .install-step:first-child{border-radius:16px 16px 0 0}
+  .install-step:last-child{border-radius:0 0 16px 16px}
+  .install-step{border-radius:0}
+  .verdict-cards{grid-template-columns:1fr}
+  .flow-split{grid-template-columns:1fr}
+  .split-node.g{border-radius:0}
+  .split-node.r{border-radius:0 0 14px 14px}
+  footer{padding:28px 20px;flex-direction:column;gap:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Trust<span>Check</span></div>
+  <div class="nav-links">
+    <a href="#install" class="nav-link">Install</a>
+    <a href="#how" class="nav-link">How it works</a>
+    <a href="#parameters" class="nav-link">Parameters</a>
+    <a href="#verdict" class="nav-link">Verdict</a>
+  </div>
+  <a href="https://github.com/Srisaiw/Trustcheck" target="_blank" class="nav-btn">↓ Download Extension</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-eyebrow">🔍 Chrome Extension · Free Forever · No Signup</div>
+  <h1 class="hero-title">
+    KNOW<br>
+    BEFORE<br>
+    <span class="italic">you buy</span>
+  </h1>
+  <p class="hero-sub">
+    TrustCheck is a Chrome extension that <strong>reads product reviews in real time</strong> and gives you an instant verdict — should you buy this or not?
+  </p>
+  <div class="hero-cta">
+    <a href="https://github.com/Srisaiw/Trustcheck" target="_blank" class="btn-primary">↓ Download from GitHub</a>
+    <a href="#how" class="btn-ghost">See how it works</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">3<span>+</span></div><div class="stat-label">Platforms Supported</div></div>
+    <div class="stat"><div class="stat-num"><span>&lt;</span>5<span>s</span></div><div class="stat-label">Analysis Time</div></div>
+    <div class="stat"><div class="stat-num">40<span>%</span></div><div class="stat-label">Reviews Online Are Fake</div></div>
+    <div class="stat"><div class="stat-num">0<span>₹</span></div><div class="stat-label">Cost to Use</div></div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <div class="marquee-item">Amazon.in <span>✓</span></div><div class="marquee-item">Flipkart <span>✓</span></div>
+    <div class="marquee-item">Meesho <span>✓</span></div><div class="marquee-item">Fake Review Detection <span>↗</span></div>
+    <div class="marquee-item">Trust Score 0–100 <span>✓</span></div><div class="marquee-item">BUY / CAUTION / AVOID <span>↗</span></div>
+    <div class="marquee-item">Chrome Extension <span>✓</span></div><div class="marquee-item">100% Free <span>↗</span></div>
+    <div class="marquee-item">No Signup Required <span>✓</span></div><div class="marquee-item">AI Powered <span>↗</span></div>
+    <div class="marquee-item">Amazon.in <span>✓</span></div><div class="marquee-item">Flipkart <span>✓</span></div>
+    <div class="marquee-item">Meesho <span>✓</span></div><div class="marquee-item">Fake Review Detection <span>↗</span></div>
+    <div class="marquee-item">Trust Score 0–100 <span>✓</span></div><div class="marquee-item">BUY / CAUTION / AVOID <span>↗</span></div>
+    <div class="marquee-item">Chrome Extension <span>✓</span></div><div class="marquee-item">100% Free <span>↗</span></div>
+    <div class="marquee-item">No Signup Required <span>✓</span></div><div class="marquee-item">AI Powered <span>↗</span></div>
+  </div>
+</div>
+
+<!-- INSTALL -->
+<section class="install-section" id="install">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">// get started</div>
+      <h2 class="section-title">INSTALL IN<br>60 SECONDS</h2>
+      <p class="section-sub">No Chrome Web Store needed. Download from GitHub, unzip, and load directly into Chrome. One minute, five steps.</p>
+    </div>
+    <div class="install-steps reveal">
+      <div class="install-step">
+        <div class="install-num">01</div>
+        <span class="install-icon">⬇️</span>
+        <div class="install-title">DOWNLOAD</div>
+        <div class="install-desc">Go to our GitHub repo. Click the green <strong style="color:var(--text)">Code</strong> button → <strong style="color:var(--text)">Download ZIP</strong> and save it.</div>
+        <div class="install-code">github.com/Srisaiw/Trustcheck</div>
+      </div>
+      <div class="install-step">
+        <div class="install-num">02</div>
+        <span class="install-icon">📂</span>
+        <div class="install-title">UNZIP</div>
+        <div class="install-desc">Extract the ZIP to a <strong style="color:var(--text)">permanent folder</strong>. Don't delete it — Chrome needs it to keep the extension running.</div>
+        <div class="install-code">trustcheck-extension/</div>
+      </div>
+      <div class="install-step">
+        <div class="install-num">03</div>
+        <span class="install-icon">🧩</span>
+        <div class="install-title">OPEN CHROME</div>
+        <div class="install-desc">Navigate to Chrome extensions. Toggle on <strong style="color:var(--text)">Developer Mode</strong> in the top-right corner.</div>
+        <div class="install-code">chrome://extensions</div>
+      </div>
+      <div class="install-step">
+        <div class="install-num">04</div>
+        <span class="install-icon">📦</span>
+        <div class="install-title">LOAD UNPACKED</div>
+        <div class="install-desc">Click <strong style="color:var(--text)">Load unpacked</strong>, select the extracted folder. TrustCheck appears in your Chrome toolbar instantly.</div>
+        <div class="install-code">Load unpacked → select folder</div>
+      </div>
+      <div class="install-step">
+        <div class="install-num">05</div>
+        <span class="install-icon">🛒</span>
+        <div class="install-title">START SHOPPING</div>
+        <div class="install-desc">Visit any product on Amazon, Flipkart, or Meesho. Click the <strong style="color:var(--text)">🔍 icon</strong> in your toolbar and hit Analyse Reviews.</div>
+        <div class="install-code">Click 🔍 → Analyse Reviews</div>
+      </div>
+    </div>
+    <div class="github-cta reveal">
+      <a href="https://github.com/Srisaiw/Trustcheck" target="_blank" class="github-btn">
+        <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Download from GitHub
+      </a>
+      <div class="github-note">// free · open source · no account needed</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="flow-section" id="how">
+  <div class="flow-inner">
+    <div class="reveal">
+      <div class="section-label">// extension flow</div>
+      <h2 class="section-title">HOW IT<br>WORKS</h2>
+      <p class="section-sub">From clicking the icon to getting your verdict — here's exactly what happens inside TrustCheck, step by step.</p>
+    </div>
+
+    <div style="margin-top:56px;display:flex;flex-direction:column;gap:0;" class="reveal">
+
+      <div class="flow-node">
+        <div class="flow-node-num">// step 01</div>
+        <div class="flow-node-title">YOU OPEN A PRODUCT PAGE</div>
+        <div class="flow-node-desc">Navigate to any product listing on Amazon.in, Flipkart, or Meesho. TrustCheck's content script loads silently in the background, ready to read the page DOM at any moment.</div>
+        <div class="flow-tags"><span class="flow-tag tag-b">content.js injected</span><span class="flow-tag tag-b">DOM ready</span></div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node">
+        <div class="flow-node-num">// step 02</div>
+        <div class="flow-node-title">YOU CLICK THE TRUSTCHECK ICON</div>
+        <div class="flow-node-desc">Clicking the 🔍 icon in your Chrome toolbar opens the TrustCheck popup. The popup immediately sends a message to the content script requesting all available product data from the current page.</div>
+        <div class="flow-tags"><span class="flow-tag tag-b">popup.js opens</span><span class="flow-tag tag-b">message → content.js</span></div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node">
+        <div class="flow-node-num">// step 03</div>
+        <div class="flow-node-title">CONTENT SCRIPT SCRAPES THE PAGE</div>
+        <div class="flow-node-desc">The content script reads the live page DOM using platform-specific CSS selectors. It extracts the product name, overall star rating, review titles, and up to 20 individual review bodies. Platform is auto-detected from the URL.</div>
+        <div class="flow-tags">
+          <span class="flow-tag tag-b">product name</span>
+          <span class="flow-tag tag-b">star rating</span>
+          <span class="flow-tag tag-b">review titles</span>
+          <span class="flow-tag tag-b">up to 20 review bodies</span>
+          <span class="flow-tag tag-b">platform auto-detected</span>
+        </div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node">
+        <div class="flow-node-num">// step 04</div>
+        <div class="flow-node-title">DATA ROUTED THROUGH BACKGROUND WORKER</div>
+        <div class="flow-node-desc">Scraped data passes from popup.js to background.js — Chrome's Manifest V3 service worker. This is necessary because browser popups cannot make direct cross-origin API calls. The background worker handles all external communication.</div>
+        <div class="flow-tags"><span class="flow-tag tag-y">background.js handles CORS</span><span class="flow-tag tag-y">Manifest V3 service worker</span></div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node">
+        <div class="flow-node-num">// step 05</div>
+        <div class="flow-node-title">AI ANALYSES ALL REVIEWS</div>
+        <div class="flow-node-desc">The background worker sends the product name, platform, star rating, and all review text to the AI API. The model reads every review for authenticity signals, sentiment quality, red flags, fake patterns, and genuine buyer concerns — returning a structured JSON verdict in under 5 seconds.</div>
+        <div class="flow-tags">
+          <span class="flow-tag tag-y">review authenticity</span>
+          <span class="flow-tag tag-y">sentiment quality</span>
+          <span class="flow-tag tag-y">fake signals</span>
+          <span class="flow-tag tag-y">genuine concerns</span>
+          <span class="flow-tag tag-y">trust score 0–100</span>
+        </div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div>
+        <div class="flow-node flow-top-node" style="background:#0f1218;">
+          <div class="flow-node-num">// step 06</div>
+          <div class="flow-node-title">VERDICT DISPLAYED IN POPUP</div>
+          <div class="flow-node-desc">Results are sent back to popup.js and rendered instantly. You see the Trust Score, pros, cons, fake review risk badge, and one clear buying recommendation. Every analysis ends in one of three verdicts:</div>
+        </div>
+        <div class="flow-split">
+          <div class="split-node g">
+            <div class="split-title">✅ BUY</div>
+            <div class="split-desc">Trust Score ≥ 65 and fake risk is not HIGH. Reviews look genuine and specific. Safe to purchase.</div>
+          </div>
+          <div class="split-node y">
+            <div class="split-title">⚠️ CAUTION</div>
+            <div class="split-desc">Score between 39–64. Mixed signals detected. Research further before ordering.</div>
+          </div>
+          <div class="split-node r">
+            <div class="split-title">🚫 AVOID</div>
+            <div class="split-desc">Score ≤ 38 or HIGH fake risk with heavy negative feedback. Strong signs of manipulation.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PARAMETERS -->
+<section class="params-section" id="parameters">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">// what it analyses</div>
+      <h2 class="section-title">8 PARAMETERS<br>CONSIDERED</h2>
+      <p class="section-sub">TrustCheck doesn't just count stars. It examines 8 distinct dimensions of every review set to build its verdict.</p>
+    </div>
+    <div class="params-grid reveal">
+      <div class="param-card">
+        <span class="param-icon">⭐</span>
+        <div class="param-title">STAR RATING</div>
+        <div class="param-desc">The overall numeric rating scraped directly from the product page. Used as a baseline modifier — boosts high-rated products, penalises low-rated ones.</div>
+        <div class="param-signals"><span class="signal-tag">≥ 4.5 → +15 pts</span><span class="signal-tag">≥ 4.0 → +8 pts</span><span class="signal-tag">≤ 3.0 → −15 pts</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">😊</span>
+        <div class="param-title">SENTIMENT RATIO</div>
+        <div class="param-desc">Each review is scored against curated wordlists of 30+ positive and 30+ negative signals. The ratio of positive to negative reviews forms the largest component of the trust score.</div>
+        <div class="param-signals"><span class="signal-tag">30+ positive words</span><span class="signal-tag">30+ negative words</span><span class="signal-tag">50% of score weight</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">🤖</span>
+        <div class="param-title">FAKE PHRASE DENSITY</div>
+        <div class="param-desc">Checks how many reviews contain templated fake-review phrases — "highly recommend", "best product ever", "totally worth", "as described" — common in paid review farms.</div>
+        <div class="param-signals"><span class="signal-tag">22+ phrase triggers</span><span class="signal-tag">weighted ×22</span><span class="signal-tag">35% of score weight</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">📏</span>
+        <div class="param-title">REVIEW LENGTH</div>
+        <div class="param-desc">Very short reviews (under 8 words) are a red flag — genuine buyers usually explain their experience. A high ratio of short reviews significantly lowers the authenticity score.</div>
+        <div class="param-signals"><span class="signal-tag">&lt; 8 words = short</span><span class="signal-tag">short ratio × 20</span><span class="signal-tag">catches lazy fakes</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">🔁</span>
+        <div class="param-title">DUPLICATE DETECTION</div>
+        <div class="param-desc">Every pair of reviews is compared using Jaccard Similarity — a mathematical measure of word overlap. Reviews with over 65% word overlap are flagged as near-duplicates, a strong bot signal.</div>
+        <div class="param-signals"><span class="signal-tag">Jaccard similarity</span><span class="signal-tag">&gt; 65% = duplicate</span><span class="signal-tag">weighted ×40</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">💬</span>
+        <div class="param-title">VAGUENESS SCORE</div>
+        <div class="param-desc">Reviews that are positive, short, and contain only generic praise with zero product-specific detail are flagged as "vague". High vagueness ratios indicate incentivised or paid reviews.</div>
+        <div class="param-signals"><span class="signal-tag">generic + short + positive</span><span class="signal-tag">vague ratio × 20</span><span class="signal-tag">catches soft fakes</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">❗</span>
+        <div class="param-title">EXCLAMATION DENSITY</div>
+        <div class="param-desc">Fake reviews frequently overuse exclamation marks to perform enthusiasm. The average exclamation count per review contributes to the fake score, capped at 15 points.</div>
+        <div class="param-signals"><span class="signal-tag">avg per review × 5</span><span class="signal-tag">capped at 15 pts</span><span class="signal-tag">over-enthusiasm flag</span></div>
+      </div>
+      <div class="param-card">
+        <span class="param-icon">🎯</span>
+        <div class="param-title">SPECIFIC CONCERN EXTRACTION</div>
+        <div class="param-desc">11 concern categories are scanned via regex — durability failures, fake product claims, size mismatch, delivery damage, battery issues, misleading descriptions, and more.</div>
+        <div class="param-signals"><span class="signal-tag">11 concern patterns</span><span class="signal-tag">regex matched</span><span class="signal-tag">surfaced as cons</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VERDICT -->
+<section class="verdict-section" id="verdict">
+  <div class="verdict-inner">
+    <div class="reveal">
+      <div class="section-label">// output</div>
+      <h2 class="section-title">THE THREE<br>VERDICTS</h2>
+      <p class="section-sub">Every analysis ends with one of three clear verdicts, calculated from the Trust Score and fake review risk level.</p>
+    </div>
+    <div class="verdict-cards reveal">
+      <div class="verdict-card vc-buy">
+        <span class="verdict-emoji">✅</span>
+        <div class="verdict-name">BUY</div>
+        <div class="verdict-range">// Trust Score ≥ 65</div>
+        <div class="verdict-desc">Reviews look genuine and specific. Positive sentiment dominates without suspicious patterns. Fake review risk is LOW or MEDIUM. Safe to purchase — check the listed cons for dealbreakers.</div>
+      </div>
+      <div class="verdict-card vc-caution">
+        <span class="verdict-emoji">⚠️</span>
+        <div class="verdict-name">CAUTION</div>
+        <div class="verdict-range">// Trust Score 39–64</div>
+        <div class="verdict-desc">Mixed signals detected. Some reviews appear genuine, others are vague or templated. Read the 1-star reviews carefully and compare with alternatives before deciding.</div>
+      </div>
+      <div class="verdict-card vc-avoid">
+        <span class="verdict-emoji">🚫</span>
+        <div class="verdict-name">AVOID</div>
+        <div class="verdict-range">// Trust Score ≤ 38</div>
+        <div class="verdict-desc">Too many red flags — high fake review density, heavy complaints, or suspicious review uniformity. The risk of a bad purchase is too high. Look for alternatives.</div>
+      </div>
+    </div>
+    <div class="formula-box reveal">
+      <div class="formula-title">// trust score formula</div>
+      <div class="formula-row">
+        <div class="formula-weight">50%</div>
+        <div class="formula-label">
+          <div class="formula-name">Sentiment Ratio</div>
+          <div class="formula-detail">Positive review % minus weighted negative review % across all scraped reviews</div>
+        </div>
+        <div class="formula-bar-bg"><div class="formula-bar-fill" style="width:50%"></div></div>
+      </div>
+      <div class="formula-row">
+        <div class="formula-weight">35%</div>
+        <div class="formula-label">
+          <div class="formula-name">Authenticity Score</div>
+          <div class="formula-detail">100 minus fake score — penalises duplicates, generic phrases, short/vague reviews, exclamation overuse</div>
+        </div>
+        <div class="formula-bar-bg"><div class="formula-bar-fill" style="width:35%"></div></div>
+      </div>
+      <div class="formula-row">
+        <div class="formula-weight">15%</div>
+        <div class="formula-label">
+          <div class="formula-name">Star Rating Modifier</div>
+          <div class="formula-detail">Scraped overall star rating applies a bonus or penalty to the final score</div>
+        </div>
+        <div class="formula-bar-bg"><div class="formula-bar-fill" style="width:15%"></div></div>
+      </div>
+      <div class="formula-note">Score clamped 5–95 · Review count &lt; 5 → −5 penalty · Count ≥ 10 → +5 bonus</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">// capabilities</div>
+      <h2 class="section-title">WHAT WE<br>DETECT</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal"><span class="feature-icon">🤖</span><div class="feature-title">BOT PATTERNS</div><div class="feature-desc">Identifies repetitive phrasing, templated language, and unnatural positivity used in paid fake review farms across all three platforms.</div></div>
+      <div class="feature-card reveal"><span class="feature-icon">📊</span><div class="feature-title">SENTIMENT DRIFT</div><div class="feature-desc">Flags when positive reviews are suspiciously vague while negative ones are specific and detailed — a classic sign of review manipulation.</div></div>
+      <div class="feature-card reveal"><span class="feature-icon">⚡</span><div class="feature-title">INCENTIVE SIGNALS</div><div class="feature-desc">Detects language patterns that suggest paid, gifted, or incentivised reviews that real spontaneous buyers rarely write.</div></div>
+      <div class="feature-card reveal"><span class="feature-icon">🎯</span><div class="feature-title">GENUINE CONCERNS</div><div class="feature-desc">Surfaces real issues across 11 categories — quality defects, delivery damage, authenticity concerns, size mismatches, and more.</div></div>
+      <div class="feature-card reveal"><span class="feature-icon">🛡️</span><div class="feature-title">TRUST SCORING</div><div class="feature-desc">A transparent 0–100 composite score weighing sentiment authenticity, fake phrase density, duplicate detection, and star rating modifier.</div></div>
+      <div class="feature-card reveal"><span class="feature-icon">💬</span><div class="feature-title">PLAIN BUYING ADVICE</div><div class="feature-desc">No jargon. One clear sentence of actionable advice tailored to the specific verdict and real concerns found in the review set.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Trust<span>Check</span></div>
+  <div class="footer-links">
+    <a href="https://github.com/Srisaiw/Trustcheck" target="_blank" class="footer-link">GitHub →</a>
+    <a href="#install" class="footer-link">Install Guide</a>
+    <a href="#how" class="footer-link">How it Works</a>
+    <a href="#parameters" class="footer-link">Parameters</a>
+  </div>
+  <div class="footer-tag">// PoD Team 157 · Pains of Ecommerce · <span id="yr"></span></div>
+</footer>
+
+<script>
+const cursor=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px';});
+(function a(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(a);})();
+document.querySelectorAll('a,button,.param-card,.feature-card,.verdict-card,.install-step,.flow-node').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cursor.style.width='14px';cursor.style.height='14px';ring.style.width='48px';ring.style.height='48px';});
+  el.addEventListener('mouseleave',()=>{cursor.style.width='8px';cursor.style.height='8px';ring.style.width='32px';ring.style.height='32px';});
+});
+const obs=new IntersectionObserver(e=>{e.forEach(i=>{if(i.isIntersecting)i.target.classList.add('visible');});},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+document.getElementById('yr').textContent='© '+new Date().getFullYear();
+</script>
+</body>
+</html>
